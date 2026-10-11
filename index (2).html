@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cyber Security Hero: Pokpong's IT Exploration (ม.1 บทที่ 6)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Kanit', sans-serif;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+            background-color: #060913;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        .hud-glass {
+            background: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+        .touch-btn {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(8px);
+            border: 2px solid rgba(56, 189, 248, 0.4);
+            transition: transform 0.05s ease, background-color 0.1s;
+        }
+        .touch-btn:active {
+            background: rgba(56, 189, 248, 0.35);
+            transform: scale(0.92);
+        }
+        .quiz-option-btn {
+            transition: all 0.2s ease;
+        }
+        .quiz-option-btn:hover {
+            transform: translateY(-2px);
+            border-color: #38bdf8;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 4px; }
+    </style>
+</head>
+<body class="relative text-white min-h-screen w-screen overflow-hidden select-none">
+
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Top Left HUD (Player Stats & Progress) -->
+    <div class="absolute top-4 left-4 flex flex-col gap-2 z-20 pointer-events-none">
+        <div class="hud-glass rounded-2xl p-3.5 flex items-center gap-4 shadow-2xl min-w-[270px]">
+            <div class="relative w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 flex items-center justify-center font-extrabold text-xl shadow-lg border-2 border-cyan-300/60">
+                <span>🛡️</span>
+            </div>
+            <div class="flex-1">
+                <div class="flex justify-between items-center text-xs font-semibold mb-1 text-slate-300">
+                    <span id="playerName">น้องปกป้อง นักสำรวจไซเบอร์</span>
+                    <span id="playerLevel" class="text-cyan-400 font-bold">Lv. 1</span>
+                </div>
+                <!-- Shield / HP Bar -->
+                <div class="w-full bg-slate-900/90 rounded-full h-3.5 p-0.5 overflow-hidden border border-slate-700 mb-1.5">
+                    <div id="hpFill" class="bg-gradient-to-r from-emerald-400 to-teal-300 h-full rounded-full transition-all duration-200" style="width: 100%;"></div>
+                </div>
+                <!-- EXP Bar -->
+                <div class="w-full bg-slate-900/90 rounded-full h-2 p-0.5 overflow-hidden border border-slate-700">
+                    <div id="expFill" class="bg-gradient-to-r from-cyan-400 to-blue-500 h-full rounded-full transition-all duration-200" style="width: 0%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Score & Remaining Cyber Threats -->
+        <div class="flex gap-2">
+            <div class="hud-glass rounded-xl px-3.5 py-1.5 flex items-center justify-between shadow-lg text-xs flex-1">
+                <span class="text-slate-400"><i class="fa-solid fa-trophy text-amber-400 mr-1"></i> คะแนน:</span>
+                <span id="scoreText" class="font-extrabold text-amber-300 text-sm">0</span>
+            </div>
+            <div class="hud-glass rounded-xl px-3.5 py-1.5 flex items-center justify-between shadow-lg text-xs flex-1">
+                <span class="text-slate-400"><i class="fa-solid fa-bug text-rose-400 mr-1"></i> ภัยคุกคาม:</span>
+                <span id="threatsText" class="font-extrabold text-rose-400 text-sm">0/0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Center Radar / Compass Arrow -->
+    <div class="absolute top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+        <div class="hud-glass rounded-full px-4 py-2 flex items-center gap-3 border border-cyan-400/40 shadow-xl">
+            <div id="radarArrow" class="w-6 h-6 flex items-center justify-center text-cyan-400 text-lg transition-transform duration-75">
+                <i class="fa-solid fa-location-arrow"></i>
+            </div>
+            <span id="radarDistance" class="text-xs font-bold text-cyan-300 tracking-wide">ค้นหาภัยคุกคามใกล้สุด...</span>
+        </div>
+    </div>
+
+    <!-- Top Right Sound & Pause Controls -->
+    <div class="absolute top-4 right-4 flex items-center gap-2 z-20">
+        <button id="soundBtn" class="hud-glass hover:bg-slate-800/80 p-3 rounded-2xl text-slate-200 hover:text-white transition pointer-events-auto shadow-lg flex items-center justify-center">
+            <i class="fa-solid fa-volume-high text-lg" id="soundIcon"></i>
+        </button>
+        <button id="pauseBtn" class="hud-glass hover:bg-slate-800/80 p-3 rounded-2xl text-slate-200 hover:text-white transition pointer-events-auto shadow-lg flex items-center justify-center">
+            <i class="fa-solid fa-pause text-lg"></i>
+        </button>
+    </div>
+
+    <!-- Center Combo/Notice Banner -->
+    <div id="comboBanner" class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-30 transition-all duration-200 opacity-0 scale-50 flex flex-col items-center">
+        <h2 id="comboBannerText" class="text-2xl md:text-4xl font-extrabold italic tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-cyan-400 to-blue-500 drop-shadow-[0_4px_12px_rgba(56,189,248,0.8)]">
+            THREAT PURIFIED!
+        </h2>
+    </div>
+
+    <!-- Mobile Virtual Joystick -->
+    <div class="md:hidden absolute bottom-6 left-6 z-30 pointer-events-auto">
+        <div id="joystickZone" class="w-36 h-36 rounded-full bg-slate-900/60 border-2 border-cyan-500/40 relative flex items-center justify-center backdrop-blur-md">
+            <div id="joystickKnob" class="w-14 h-14 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 shadow-lg border-2 border-white/60 absolute transition-none"></div>
+        </div>
+    </div>
+
+    <!-- Skill & Control Buttons (Bottom Right) -->
+    <div class="absolute bottom-6 right-6 z-30 flex flex-col items-end gap-3 pointer-events-auto">
+        <!-- Dash Speed Boost -->
+        <button id="btnDash" class="touch-btn w-16 h-16 rounded-full flex flex-col items-center justify-center text-amber-300 shadow-xl relative overflow-hidden">
+            <i class="fa-solid fa-bolt text-2xl"></i>
+            <span class="text-[9px] font-bold text-slate-300 hidden md:block">SPACE / SHIFT</span>
+            <div id="cooldownDash" class="absolute inset-0 bg-slate-950/80 flex items-center justify-center text-xs font-bold text-white opacity-0 transition-opacity">0s</div>
+        </button>
+    </div>
+
+    <!-- Educational Quiz Terminal Modal (Collision Triggered) -->
+    <div id="quizModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-lg z-50 flex items-center justify-center p-4 transition-all duration-300 opacity-0 pointer-events-none">
+        <div id="quizContent" class="hud-glass max-w-lg w-full rounded-3xl p-6 md:p-8 text-left border border-cyan-500/40 shadow-[0_0_50px_rgba(56,189,248,0.25)] transform scale-95 transition-all relative overflow-hidden">
+            <div class="flex items-center gap-3 mb-4 border-b border-slate-700/80 pb-3">
+                <div id="quizThreatIcon" class="w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-400/50 flex items-center justify-center text-rose-400 text-2xl font-bold">
+                    <i class="fa-solid fa-bug"></i>
+                </div>
+                <div>
+                    <span id="quizThreatTag" class="text-xs font-bold text-rose-400 tracking-wider uppercase block">⚠️ ชนกับมัลแวร์ภัยคุกคาม!</span>
+                    <h3 id="quizThreatTitle" class="text-base font-bold text-cyan-300">วิทยาการคำนวณ ม.1 บทที่ 6</h3>
+                </div>
+            </div>
+
+            <p id="quizQuestionText" class="text-slate-100 text-base md:text-lg font-medium leading-relaxed mb-6">
+                คำถามทดสอบความรู้ไอทีจะปรากฏที่นี่...
+            </p>
+
+            <div id="quizOptionsContainer" class="flex flex-col gap-3 mb-4">
+                <!-- Options injected dynamically -->
+            </div>
+
+            <div id="quizFeedback" class="hidden rounded-xl p-3 text-xs font-semibold leading-relaxed border mb-2"></div>
+        </div>
+    </div>
+
+    <!-- Start / Pause / Victory Overlay Modal -->
+    <div id="overlayModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-all duration-300 opacity-0 pointer-events-none">
+        <div id="modalContent" class="hud-glass max-w-md w-full rounded-3xl p-6 md:p-8 text-center border border-cyan-500/30 shadow-2xl transform scale-95 transition-all">
+            <div id="modalIcon" class="w-20 h-20 mx-auto rounded-full bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 flex items-center justify-center text-4xl mb-4 shadow-lg border border-cyan-300/40 animate-pulse">
+                🛡️
+            </div>
+            <h2 id="modalTitle" class="text-2xl md:text-3xl font-extrabold text-white mb-2">Cyber Security Hero 🛡️</h2>
+            <p id="modalDesc" class="text-slate-300 text-sm mb-6 leading-relaxed">
+                ออกสำรวจเขาวงกตไซเบอร์ **ตามหาเหล่ามัลแวร์** และหลบสิ่งกีดขวาง (Server Racks & Firewall Barriers) เมื่อเดินชนมัลแวร์ให้ตอบคำถามเพื่อกำจัดและกู้คืนระบบ!
+            </p>
+            <div class="flex flex-col gap-3">
+                <button id="modalPrimaryBtn" class="w-full py-3.5 bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold text-lg rounded-2xl shadow-lg transition transform active:scale-95 border border-cyan-300/30">
+                    เริ่มออกสำรวจและตามหาภัยคุกคาม
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Quiz Question Bank (ม.1 บทที่ 6)
+        const quizBank = [
+            {
+                threatName: "โปรแกรมเรียกค่าไถ่ (Ransomware)",
+                icon: "fa-lock",
+                color: "#a855f7",
+                question: "มัลแวร์ชนิดใดที่ขัดขวางการเข้าถึงไฟล์ข้อมูลในเครื่องด้วยการ 'เข้ารหัส' แล้วขู่เรียกเงินแลกรหัสผ่าน?",
+                options: [
+                    { text: "โปรแกรมเรียกค่าไถ่ (Ransomware)", isCorrect: true },
+                    { text: "โปรแกรมโฆษณา (Adware)", isCorrect: false },
+                    { text: "เวิร์ม (Worm)", isCorrect: false },
+                    { text: "ประตูกล (Backdoor)", isCorrect: false }
+                ],
+                explanation: "Ransomware จะเข้ารหัสล็อกไฟล์สำคัญในคอมพิวเตอร์และขู่เรียกเงินเพื่อแลกกับคีย์ปลดล็อก"
+            },
+            {
+                threatName: "การยืนยันตัวตนชีวมาตร (Biometrics)",
+                icon: "fa-fingerprint",
+                color: "#06b6d4",
+                question: "การตรวจสอบตัวตนด้วย 'ลายนิ้วมือ ม่านตา ใบหน้า เสียง' จัดเป็นการตรวจสอบประเภทใด?",
+                options: [
+                    { text: "สิ่งที่เป็นส่วนหนึ่งของผู้ใช้ (Biometrics)", isCorrect: true },
+                    { text: "สิ่งที่ผู้ใช้รู้ (What you know)", isCorrect: false },
+                    { text: "สิ่งที่ผู้ใช้มี (What you have)", isCorrect: false },
+                    { text: "สิ่งที่ผู้ใช้สร้างขึ้น (What you create)", isCorrect: false }
+                ],
+                explanation: "Biometrics เป็นการใช้ข้อมูลทางชีวภาพเฉพาะบุคคลในการระบุตัวตน ปลอดภัยและปลอมแปลงได้ยาก"
+            },
+            {
+                threatName: "ลิขสิทธิ์ CC BY-NC",
+                icon: "fa-creative-commons",
+                color: "#f59e0b",
+                question: "สัญลักษณ์ Creative Commons แบบ 'CC BY-NC' มีเงื่อนไขการใช้งานอย่างไร?",
+                options: [
+                    { text: "อ้างอิงแหล่งที่มา และห้ามนำไปใช้เพื่อการค้า", isCorrect: true },
+                    { text: "ห้ามดัดแปลงผลงานเด็ดขาด", isCorrect: false },
+                    { text: "ต้องเผยแพร่ต่อด้วยสัญญาเดิมเท่านั้น", isCorrect: false },
+                    { text: "ใช้งานได้อิสระโดยไม่ต้องอ้างอิงเจ้าของ", isCorrect: false }
+                ],
+                explanation: "BY = ต้องอ้างอิงชื่อผู้สร้างสรรค์, NC (NonCommercial) = ห้ามนำไปใช้ประโยชน์ทางการค้า"
+            },
+            {
+                threatName: "รหัสผ่านไม่ปลอดภัย (Weak Password)",
+                icon: "fa-key",
+                color: "#ef4444",
+                question: "รหัสผ่าน (Password) ในข้อใดมีความปลอดภัยตามหลักการรัดกุมมากที่สุด?",
+                options: [
+                    { text: "Y1nG@#Iz10", isCorrect: true },
+                    { text: "12345678", isCorrect: false },
+                    { text: "password2026", isCorrect: false },
+                    { text: "Cookie2550", isCorrect: false }
+                ],
+                explanation: "รหัสผ่านที่ดีควรประกอบด้วยอักษรตัวใหญ่ ตัวเล็ก ตัวเลข และสัญลักษณ์ผสมกันอย่างน้อย 8-12 ตัวอักษร"
+            },
+            {
+                threatName: "หนอนคอมพิวเตอร์ (Network Worm)",
+                icon: "fa-bug",
+                color: "#10b981",
+                question: "มัลแวร์ชนิดใดสามารถ 'แพร่กระจายไปยังเครื่องอื่นในเครือข่ายได้ด้วยตนเอง' โดยอัตโนมัติ?",
+                options: [
+                    { text: "เวิร์ม (Worm)", isCorrect: true },
+                    { text: "ม้าโทรจัน (Trojan Horse)", isCorrect: false },
+                    { text: "ระเบิดเวลา (Logic Bomb)", isCorrect: false },
+                    { text: "สปายแวร์ (Spyware)", isCorrect: false }
+                ],
+                explanation: "Worm (หนอนคอมพิวเตอร์) ค้นหาช่องโหว่และส่งสำเนาตัวเองกระจายผ่านระบบเครือข่ายได้เอง"
+            },
+            {
+                threatName: "การหลอกลวงฟิชชิง (Phishing Site)",
+                icon: "fa-fish-fins",
+                color: "#ec4899",
+                question: "การสร้างเว็บปลอมหรือส่งอีเมลหลอกลวงให้ผู้ใช้กรอกรหัสผ่าน เรียกว่าการคุกคามแบบใด?",
+                options: [
+                    { text: "ฟิชชิง (Phishing) / วิศวกรรมสังคม", isCorrect: true },
+                    { text: "การยิงไวรัส (Virus Blast)", isCorrect: false },
+                    { text: "การติดตั้งแอดแวร์ (Adware)", isCorrect: false },
+                    { text: "การแฮกฮาร์ดดิสก์ (Harddisk Attack)", isCorrect: false }
+                ],
+                explanation: "Phishing เป็นการใช้อุบายหลอกลวงทางจิตวิทยาเพื่อให้ผู้เหยื่อยินยอมส่งมอบข้อมูลสำคัญด้วยตนเอง"
+            },
+            {
+                threatName: "ความปลอดภัยคอมพิวเตอร์สาธารณะ",
+                icon: "fa-desktop",
+                color: "#3b82f6",
+                question: "เมื่อเลิกใช้งานคอมพิวเตอร์สาธารณะ ข้อใดเป็นสิ่งที่ต้องปฏิบัติเป็นอันดับแรก?",
+                options: [
+                    { text: "ออกจากระบบ (Log out) ทุกบัญชี", isCorrect: true },
+                    { text: "ปิดหน้าจอคอมพิวเตอร์ทันที", isCorrect: false },
+                    { text: "จดบันทึกรหัสผ่านแปะไว้ข้างเครื่อง", isCorrect: false },
+                    { text: "บันทึกรหัสผ่านไว้ในเบราว์เซอร์", isCorrect: false }
+                ],
+                explanation: "ต้อง Log out ทุกครั้ง เพื่อป้องกันไม่ให้ผู้ใช้งานคนถัดไปแอบเข้าถึงบัญชีส่วนตัวของเราได้"
+            },
+            {
+                threatName: "โปรแกรมสายลับ (Spyware)",
+                icon: "fa-user-ninja",
+                color: "#6366f1",
+                question: "แอปพลิเคชันที่แอบบันทึกการพิมพ์และขโมยข้อมูลพฤติกรรมใช้งานเรียกว่าอะไร?",
+                options: [
+                    { text: "สปายแวร์ (Spyware)", isCorrect: true },
+                    { text: "แอดแวร์ (Adware)", isCorrect: false },
+                    { text: "ระบบปฏิบัติการ (OS)", isCorrect: false },
+                    { text: "เฟิร์มแวร์ (Firmware)", isCorrect: false }
+                ],
+                explanation: "Spyware ดักจับข้อมูลส่วนตัว รหัสผ่าน หรือพฤติกรรมการใช้งานเพื่อส่งกลับไปให้ผู้ไม่ประสงค์ดี"
+            },
+            {
+                threatName: "ลิขสิทธิ์ CC BY-ND",
+                icon: "fa-ban",
+                color: "#f43f5e",
+                question: "สัญลักษณ์ Creative Commons แบบ 'CC BY-ND' มีข้อห้ามสำคัญคืออะไร?",
+                options: [
+                    { text: "ห้ามดัดแปลงแก้ไขผลงาน (NoDerivatives)", isCorrect: true },
+                    { text: "ห้ามนำไปใช้ทางการศึกษา", isCorrect: false },
+                    { text: "ห้ามเผยแพร่ต่อในทุกกรณี", isCorrect: false },
+                    { text: "ต้องจ่ายค่าลิขสิทธิ์ก่อนใช้งาน", isCorrect: false }
+                ],
+                explanation: "ND (NoDerivatives) อนุญาตให้ใช้และเผยแพร่ได้ แต่ห้ามตัดต่อ แก้ไข หรือดัดแปลงเนื้อหาเดิม"
+            },
+            {
+                threatName: "การคุ้มครองลิขสิทธิ์ (Copyright)",
+                icon: "fa-copyright",
+                color: "#f59e0b",
+                question: "สิทธิแต่เพียงผู้เดียวที่คุ้มครองผู้สร้างสรรค์ผลงานโดยทันทีที่สร้างสรรค์คืออะไร?",
+                options: [
+                    { text: "ลิขสิทธิ์ (Copyright)", isCorrect: true },
+                    { text: "สัญญาซื้อขาย", isCorrect: false },
+                    { text: "ใบรับประกันสินค้า", isCorrect: false },
+                    { text: "สาธารณสมบัติ (Public Domain)", isCorrect: false }
+                ],
+                explanation: "ลิขสิทธิ์ให้การคุ้มครองผลงานสร้างสรรค์ทันทีที่เกิดขึ้นโดยไม่ต้องจดทะเบียน"
+            }
+        ];
+
+        let audioEnabled = false;
+        let audioInit = false;
+        let touchSound, correctSound, wrongSound, dashSound;
+
+        function initAudio() {
+            if (audioInit) return;
+            try {
+                Tone.start();
+                touchSound = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "triangle" },
+                    envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
+                }).toDestination();
+                touchSound.volume.value = -8;
+
+                correctSound = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "sine" }
+                }).toDestination();
+                correctSound.volume.value = -4;
+
+                wrongSound = new Tone.MembraneSynth({
+                    pitchDecay: 0.08,
+                    octaves: 2,
+                    oscillator: { type: "square" }
+                }).toDestination();
+                wrongSound.volume.value = -6;
+
+                dashSound = new Tone.NoiseSynth({
+                    noise: { type: 'pink' },
+                    envelope: { attack: 0.001, decay: 0.15, sustain: 0 }
+                }).toDestination();
+                dashSound.volume.value = -12;
+
+                audioInit = true;
+                audioEnabled = true;
+            } catch (e) { console.log(e); }
+        }
+
+        function playSound(type) {
+            if (!audioEnabled || !audioInit) return;
+            try {
+                if (type === 'touch') touchSound.triggerAttackRelease(["C5", "G5"], "16n");
+                else if (type === 'correct') correctSound.triggerAttackRelease(["C5", "E5", "G5", "C6"], "8n");
+                else if (type === 'wrong') wrongSound.triggerAttackRelease("G1", "8n");
+                else if (type === 'dash') dashSound.triggerAttackRelease("16n");
+            } catch (e) {}
+        }
+
+        let gameActive = false;
+        let isPaused = false;
+        let isQuizActive = false;
+        let score = 0;
+        let threatsDefeated = 0;
+        let activeThreatCount = 0;
+        let activeThreatForQuiz = null;
+
+        let camera = { x: 0, y: 0, targetX: 0, targetY: 0, shake: 0 };
+        const mapSize = { width: 2600, height: 2600 };
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        const keys = {
+            w: false, a: false, s: false, d: false,
+            ArrowUp: false, ArrowLeft: false, ArrowDown: false, ArrowRight: false,
+            ' ': false, Shift: false
+        };
+
+        window.addEventListener('keydown', (e) => {
+            if (isQuizActive) return;
+            if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                if (document.activeElement === document.body) e.preventDefault();
+            }
+            if (keys.hasOwnProperty(e.key) || keys.hasOwnProperty(e.key.toLowerCase())) {
+                keys[e.key] = true;
+                keys[e.key.toLowerCase()] = true;
+            }
+            if (e.key === ' ' || e.key === 'Shift') triggerDash();
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (keys.hasOwnProperty(e.key) || keys.hasOwnProperty(e.key.toLowerCase())) {
+                keys[e.key] = false;
+                keys[e.key.toLowerCase()] = false;
+            }
+        });
+
+        // Player Class
+        class Player {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.speed = 6.2;
+                this.friction = 0.84;
+                this.radius = 22;
+
+                this.maxHp = 100;
+                this.hp = 100;
+                this.level = 1;
+                this.exp = 0;
+                this.maxExp = 100;
+
+                this.facingAngle = 0;
+                this.isDashing = false;
+                this.dashSpeed = 20;
+                this.dashDuration = 10;
+                this.dashTimer = 0;
+                this.dashCooldown = 0;
+                this.dashMaxCooldown = 50;
+
+                this.pet = { x: x - 30, y: y - 30, angle: 0 };
+            }
+
+            update() {
+                if (this.dashCooldown > 0) this.dashCooldown--;
+                updateCooldownUI('cooldownDash', this.dashCooldown, this.dashMaxCooldown);
+
+                let nextX = this.x;
+                let nextY = this.y;
+
+                if (this.isDashing) {
+                    this.dashTimer--;
+                    nextX += Math.cos(this.facingAngle) * this.dashSpeed;
+                    nextY += Math.sin(this.facingAngle) * this.dashSpeed;
+
+                    particles.push(new Particle(
+                        this.x + (Math.random() - 0.5) * 15,
+                        this.y + (Math.random() - 0.5) * 15,
+                        '#38bdf8', Math.random() * 8 + 4,
+                        0, 0, 12, 'ring'
+                    ));
+
+                    if (this.dashTimer <= 0) this.isDashing = false;
+                } else {
+                    let dx = 0, dy = 0;
+                    if (keys.w || keys.ArrowUp) dy -= 1;
+                    if (keys.s || keys.ArrowDown) dy += 1;
+                    if (keys.a || keys.ArrowLeft) dx -= 1;
+                    if (keys.d || keys.ArrowRight) dx += 1;
+
+                    if (joystickActive) {
+                        dx = joystickDir.x;
+                        dy = joystickDir.y;
+                    }
+
+                    const mag = Math.hypot(dx, dy);
+                    if (mag > 0.1) {
+                        const normX = dx / mag;
+                        const normY = dy / mag;
+                        this.vx += normX * this.speed * 0.32;
+                        this.vy += normY * this.speed * 0.32;
+                        this.facingAngle = Math.atan2(normY, normX);
+                    }
+
+                    this.vx *= this.friction;
+                    this.vy *= this.friction;
+                    nextX += this.vx;
+                    nextY += this.vy;
+                }
+
+                // Check collision with Obstacles (Server Racks / Firewall Walls)
+                let resolved = checkObstacleCollision(nextX, nextY, this.radius);
+                this.x = resolved.x;
+                this.y = resolved.y;
+
+                // Map boundary lock
+                const limitX = mapSize.width / 2 - 40;
+                const limitY = mapSize.height / 2 - 40;
+                this.x = Math.max(-limitX, Math.min(limitX, this.x));
+                this.y = Math.max(-limitY, Math.min(limitY, this.y));
+
+                // Pet follow
+                this.pet.angle += 0.04;
+                const targetPetX = this.x + Math.cos(this.pet.angle) * 45;
+                const targetPetY = this.y + Math.sin(this.pet.angle) * 45 - 10;
+                this.pet.x += (targetPetX - this.pet.x) * 0.12;
+                this.pet.y += (targetPetY - this.pet.y) * 0.12;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x - camera.x + canvas.width / 2, this.y - camera.y + canvas.height / 2);
+
+                // Shadow
+                ctx.beginPath();
+                ctx.ellipse(0, this.radius * 0.8, Math.max(0.1, this.radius * 0.9), Math.max(0.1, this.radius * 0.4), 0, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0,0,0,0.45)';
+                ctx.fill();
+
+                ctx.rotate(this.facingAngle);
+
+                // Aura Glow
+                const auraGlow = ctx.createRadialGradient(0, 0, 5, 0, 0, this.radius + 15);
+                auraGlow.addColorStop(0, 'rgba(56, 189, 248, 0.4)');
+                auraGlow.addColorStop(1, 'rgba(56, 189, 248, 0)');
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius + 15, 0, Math.PI * 2);
+                ctx.fillStyle = auraGlow;
+                ctx.fill();
+
+                // Body (Nong Cookie)
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                const bodyGrad = ctx.createLinearGradient(-this.radius, -this.radius, this.radius, this.radius);
+                bodyGrad.addColorStop(0, '#06b6d4');
+                bodyGrad.addColorStop(1, '#3b82f6');
+                ctx.fillStyle = bodyGrad;
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+
+                // Cookie Eyes
+                ctx.fillStyle = '#0f172a';
+                ctx.beginPath();
+                ctx.arc(this.radius * 0.35, -this.radius * 0.25, 4, 0, Math.PI * 2);
+                ctx.arc(this.radius * 0.35, this.radius * 0.25, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+
+                // Pet Antivirus Bot
+                ctx.save();
+                ctx.translate(this.pet.x - camera.x + canvas.width / 2, this.pet.y - camera.y + canvas.height / 2);
+                ctx.beginPath();
+                ctx.arc(0, 0, 9, 0, Math.PI * 2);
+                ctx.fillStyle = '#10b981';
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            addExp(amount) {
+                this.exp += amount;
+                if (this.exp >= this.maxExp) {
+                    this.exp -= this.maxExp;
+                    this.level++;
+                    this.maxExp = Math.floor(this.maxExp * 1.35);
+                    this.hp = Math.min(this.maxHp, this.hp + 25);
+
+                    playSound('correct');
+                    createScreenShake(10);
+                    createFloatingText(this.x, this.y - 40, `LEVEL UP! Lv.${this.level}`, '#38bdf8', 26);
+                }
+                updateHUD();
+            }
+        }
+
+        class Obstacle {
+            constructor(x, y, w, h, type = 'server') {
+                this.x = x;
+                this.y = y;
+                this.w = w;
+                this.h = h;
+                this.type = type; // 'server', 'firewall', 'glitch'
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x - camera.x + canvas.width / 2, this.y - camera.y + canvas.height / 2);
+
+                if (this.type === 'server') {
+                    // Server Rack
+                    ctx.fillStyle = '#1e293b';
+                    ctx.fillRect(0, 0, this.w, this.h);
+                    ctx.strokeStyle = '#38bdf8';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(0, 0, this.w, this.h);
+
+                    // Server Lights
+                    ctx.fillStyle = '#10b981';
+                    for (let sy = 8; sy < this.h - 8; sy += 14) {
+                        ctx.fillRect(6, sy, 8, 4);
+                        ctx.fillRect(18, sy, 12, 4);
+                    }
+                } else if (this.type === 'firewall') {
+                    // Red Firewall Grid
+                    ctx.fillStyle = 'rgba(239, 68, 68, 0.25)';
+                    ctx.fillRect(0, 0, this.w, this.h);
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(0, 0, this.w, this.h);
+
+                    // Caution stripes
+                    ctx.strokeStyle = 'rgba(245, 158, 11, 0.6)';
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0); ctx.lineTo(this.w, this.h);
+                    ctx.stroke();
+                } else {
+                    // Cyber Block
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillRect(0, 0, this.w, this.h);
+                    ctx.strokeStyle = '#6366f1';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(0, 0, this.w, this.h);
+                }
+
+                ctx.restore();
+            }
+        }
+
+        let obstacles = [];
+
+        function generateMapLayout() {
+            obstacles = [];
+            const halfW = mapSize.width / 2;
+            const halfH = mapSize.height / 2;
+
+            // Outer Perimeter
+            obstacles.push(new Obstacle(-halfW, -halfH, mapSize.width, 30, 'firewall'));
+            obstacles.push(new Obstacle(-halfW, halfH - 30, mapSize.width, 30, 'firewall'));
+            obstacles.push(new Obstacle(-halfW, -halfH, 30, mapSize.height, 'firewall'));
+            obstacles.push(new Obstacle(halfW - 30, -halfH, 30, mapSize.height, 'firewall'));
+
+            // Server Cluster Racks & Maze Obstacles
+            for (let x = -800; x <= 800; x += 320) {
+                for (let y = -800; y <= 800; y += 320) {
+                    if (Math.abs(x) < 150 && Math.abs(y) < 150) continue; // Keep spawn area clear
+
+                    const r = Math.random();
+                    if (r < 0.45) {
+                        // Vertical server rack
+                        obstacles.push(new Obstacle(x, y, 50, 140, 'server'));
+                    } else if (r < 0.75) {
+                        // Horizontal server rack
+                        obstacles.push(new Obstacle(x, y, 140, 50, 'server'));
+                    } else {
+                        // Firewall obstacle
+                        obstacles.push(new Obstacle(x, y, 90, 90, 'firewall'));
+                    }
+                }
+            }
+        }
+
+        function checkObstacleCollision(px, py, pradius) {
+            let resX = px;
+            let resY = py;
+
+            for (let obs of obstacles) {
+                // Find closest point on obstacle rectangle
+                let closestX = Math.max(obs.x, Math.min(px, obs.x + obs.w));
+                let closestY = Math.max(obs.y, Math.min(py, obs.y + obs.h));
+
+                let distX = px - closestX;
+                let distY = py - closestY;
+                let distance = Math.hypot(distX, distY);
+
+                if (distance < pradius) {
+                    let overlap = pradius - distance;
+                    if (distance === 0) {
+                        resX += pradius;
+                    } else {
+                        resX += (distX / distance) * overlap;
+                        resY += (distY / distance) * overlap;
+                    }
+                }
+            }
+
+            return { x: resX, y: resY };
+        }
+
+        class Threat {
+            constructor(x, y, quizData) {
+                this.x = x;
+                this.y = y;
+                this.quizData = quizData;
+                this.radius = 26;
+                this.active = true;
+                this.patrolAngle = Math.random() * Math.PI * 2;
+                this.patrolSpeed = 1.2 + Math.random() * 0.8;
+                this.pulseTimer = Math.random() * 10;
+            }
+
+            update() {
+                if (!this.active) return;
+
+                this.pulseTimer += 0.05;
+
+                // Simple patrol movement
+                let nextX = this.x + Math.cos(this.patrolAngle) * this.patrolSpeed;
+                let nextY = this.y + Math.sin(this.patrolAngle) * this.patrolSpeed;
+
+                let resolved = checkObstacleCollision(nextX, nextY, this.radius);
+                if (Math.hypot(resolved.x - nextX, resolved.y - nextY) > 1) {
+                    this.patrolAngle += Math.PI * 0.75; // Bounce off obstacles
+                } else {
+                    this.x = resolved.x;
+                    this.y = resolved.y;
+                }
+
+                // Check player walk-in collision!
+                const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
+                if (distToPlayer < player.radius + this.radius && !isQuizActive && this.active) {
+                    playSound('touch');
+                    triggerQuizModalForThreat(this);
+                }
+            }
+
+            draw() {
+                if (!this.active) return;
+
+                ctx.save();
+                ctx.translate(this.x - camera.x + canvas.width / 2, this.y - camera.y + canvas.height / 2);
+
+                const pulseScale = 1 + Math.sin(this.pulseTimer) * 0.12;
+                ctx.scale(pulseScale, pulseScale);
+
+                // Warning Halo
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius + 12, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
+                ctx.fill();
+
+                // Threat Main Body
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.quizData.color || '#ef4444';
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+
+                // Threat Title Label Above
+                ctx.font = 'bold 11px Kanit, sans-serif';
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.quizData.threatName, 0, -this.radius - 12);
+
+                // Alert icon text
+                ctx.font = 'bold 14px FontAwesome, sans-serif';
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText('⚠️', 0, 5);
+
+                ctx.restore();
+            }
+        }
+
+        let threats = [];
+
+        function spawnThreats() {
+            threats = [];
+            const count = quizBank.length;
+
+            for (let i = 0; i < count; i++) {
+                let valid = false;
+                let sx = 0, sy = 0;
+
+                while (!valid) {
+                    sx = (Math.random() - 0.5) * (mapSize.width - 300);
+                    sy = (Math.random() - 0.5) * (mapSize.height - 300);
+
+                    // Ensure distance from player spawn
+                    if (Math.hypot(sx, sy) > 350) {
+                        let col = checkObstacleCollision(sx, sy, 30);
+                        if (Math.hypot(col.x - sx, col.y - sy) < 1) {
+                            valid = true;
+                        }
+                    }
+                }
+
+                threats.push(new Threat(sx, sy, quizBank[i]));
+            }
+
+            activeThreatCount = threats.length;
+            updateHUD();
+        }
+
+        function triggerQuizModalForThreat(threat) {
+            isQuizActive = true;
+            activeThreatForQuiz = threat;
+
+            const qData = threat.quizData;
+            document.getElementById('quizThreatTag').innerText = `⚠️ ตรวจพบภัยคุกคาม: ${qData.threatName}`;
+            document.getElementById('quizQuestionText').innerText = qData.question;
+            document.getElementById('quizThreatIcon').style.color = qData.color;
+
+            const container = document.getElementById('quizOptionsContainer');
+            container.innerHTML = '';
+
+            const feedback = document.getElementById('quizFeedback');
+            feedback.classList.add('hidden');
+
+            qData.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'quiz-option-btn w-full p-3.5 bg-slate-800/80 hover:bg-slate-700 text-slate-100 rounded-2xl border border-slate-600 text-left text-sm font-medium transition flex items-center gap-3';
+                btn.innerHTML = `<span class="w-7 h-7 rounded-lg bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 font-bold flex items-center justify-center text-xs">${String.fromCharCode(65 + idx)}</span> <span>${opt.text}</span>`;
+                
+                btn.onclick = () => handleQuizAnswer(opt.isCorrect, qData.explanation, btn);
+                container.appendChild(btn);
+            });
+
+            const quizModal = document.getElementById('quizModal');
+            const quizContent = document.getElementById('quizContent');
+            quizModal.classList.remove('opacity-0', 'pointer-events-none');
+            quizContent.classList.remove('scale-95');
+            quizContent.classList.add('scale-100');
+        }
+
+        function handleQuizAnswer(isCorrect, explanation, btnElement) {
+            const feedback = document.getElementById('quizFeedback');
+            feedback.classList.remove('hidden');
+
+            const allBtns = document.querySelectorAll('.quiz-option-btn');
+            allBtns.forEach(b => b.onclick = null);
+
+            if (isCorrect) {
+                btnElement.classList.add('bg-emerald-600/80', 'border-emerald-400');
+                feedback.className = 'rounded-xl p-3 text-xs font-semibold leading-relaxed border bg-emerald-950/80 border-emerald-500 text-emerald-200 mb-2';
+                feedback.innerHTML = `✅ <b>ถูกต้องเด็ดขาด!</b> ${explanation}`;
+
+                score += 250;
+                threatsDefeated++;
+                player.hp = Math.min(player.maxHp, player.hp + 20);
+                player.addExp(45);
+                playSound('correct');
+
+                if (activeThreatForQuiz) {
+                    activeThreatForQuiz.active = false;
+
+                    // Sparkle particles
+                    for (let p = 0; p < 25; p++) {
+                        const ang = Math.random() * Math.PI * 2;
+                        particles.push(new Particle(
+                            activeThreatForQuiz.x, activeThreatForQuiz.y,
+                            '#10b981', Math.random() * 6 + 3,
+                            Math.cos(ang) * 7, Math.sin(ang) * 7, 30
+                        ));
+                    }
+                }
+
+                showComboBanner('THREAT PURIFIED! +250 PTS');
+            } else {
+                btnElement.classList.add('bg-rose-600/80', 'border-rose-400');
+                feedback.className = 'rounded-xl p-3 text-xs font-semibold leading-relaxed border bg-rose-950/80 border-rose-500 text-rose-200 mb-2';
+                feedback.innerHTML = `❌ <b>คำตอบยังไม่ถูกต้อง:</b> ${explanation}`;
+
+                player.hp = Math.max(0, player.hp - 20);
+                playSound('wrong');
+                createScreenShake(12);
+
+                if (activeThreatForQuiz) {
+                    // Push player back from threat
+                    const pushAng = Math.atan2(player.y - activeThreatForQuiz.y, player.x - activeThreatForQuiz.x);
+                    player.x += Math.cos(pushAng) * 90;
+                    player.y += Math.sin(pushAng) * 90;
+                }
+
+                if (player.hp <= 0) {
+                    setTimeout(() => {
+                        closeQuizTerminal();
+                        gameOver(false);
+                    }, 2000);
+                    return;
+                }
+            }
+
+            updateHUD();
+
+            setTimeout(() => {
+                closeQuizTerminal();
+                if (threatsDefeated >= quizBank.length) {
+                    gameOver(true); // Victory!
+                }
+            }, 3000);
+        }
+
+        function closeQuizTerminal() {
+            const quizModal = document.getElementById('quizModal');
+            const quizContent = document.getElementById('quizContent');
+            quizModal.classList.add('opacity-0', 'pointer-events-none');
+            quizContent.classList.remove('scale-100');
+            quizContent.classList.add('scale-95');
+
+            isQuizActive = false;
+            activeThreatForQuiz = null;
+        }
+
+        function updateRadarCompass() {
+            let closestDist = Infinity;
+            let closestThreat = null;
+
+            for (let t of threats) {
+                if (!t.active) continue;
+                const d = Math.hypot(t.x - player.x, t.y - player.y);
+                if (d < closestDist) {
+                    closestDist = d;
+                    closestThreat = t;
+                }
+            }
+
+            const arrowEl = document.getElementById('radarArrow');
+            const distEl = document.getElementById('radarDistance');
+
+            if (closestThreat) {
+                const angle = Math.atan2(closestThreat.y - player.y, closestThreat.x - player.x);
+                const angleDeg = angle * (180 / Math.PI);
+                arrowEl.style.transform = `rotate(${angleDeg}deg)`;
+                distEl.innerText = `${closestThreat.quizData.threatName} (${Math.floor(closestDist)}m)`;
+            } else {
+                distEl.innerText = 'กู้คืนระบบทั้งหมดสำเร็จแล้ว!';
+            }
+        }
+
+        // Particles & Floating Text Helpers
+        let particles = [];
+        let floatingTexts = [];
+
+        class Particle {
+            constructor(x, y, color, size, vx, vy, life, shape = 'circle') {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.size = size;
+                this.vx = vx;
+                this.vy = vy;
+                this.life = life;
+                this.maxLife = life;
+                this.shape = shape;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life--;
+            }
+
+            draw() {
+                const alpha = Math.max(0, this.life / this.maxLife);
+                ctx.save();
+                ctx.translate(this.x - camera.x + canvas.width / 2, this.y - camera.y + canvas.height / 2);
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(0, 0, this.size * alpha, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function createFloatingText(x, y, text, color = '#ffffff', size = 18) {
+            floatingTexts.push({ x, y, text, color, size, vy: -1.8, life: 30, maxLife: 30 });
+        }
+
+        function createScreenShake(intensity) {
+            camera.shake = Math.max(camera.shake, intensity);
+        }
+
+        function triggerDash() {
+            if (!gameActive || isPaused || isQuizActive) return;
+            if (player.dashCooldown <= 0) {
+                player.isDashing = true;
+                player.dashTimer = player.dashDuration;
+                player.dashCooldown = player.dashMaxCooldown;
+                playSound('dash');
+                createScreenShake(6);
+            }
+        }
+
+        // Mobile Virtual Joystick Touch Handlers
+        let joystickActive = false;
+        let joystickCenter = { x: 0, y: 0 };
+        let joystickDir = { x: 0, y: 0 };
+
+        const joystickZone = document.getElementById('joystickZone');
+        const joystickKnob = document.getElementById('joystickKnob');
+
+        joystickZone.addEventListener('touchstart', (e) => {
+            joystickActive = true;
+            const rect = joystickZone.getBoundingClientRect();
+            joystickCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+            handleJoystickMove(e.touches[0]);
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (joystickActive) {
+                for (let touch of e.touches) {
+                    const dx = touch.clientX - joystickCenter.x;
+                    const dy = touch.clientY - joystickCenter.y;
+                    if (Math.hypot(dx, dy) < 130) {
+                        handleJoystickMove(touch);
+                        break;
+                    }
+                }
+            }
+        });
+
+        window.addEventListener('touchend', (e) => {
+            if (e.touches.length === 0) {
+                joystickActive = false;
+                joystickDir = { x: 0, y: 0 };
+                joystickKnob.style.transform = `translate(0px, 0px)`;
+            }
+        });
+
+        function handleJoystickMove(touch) {
+            const dx = touch.clientX - joystickCenter.x;
+            const dy = touch.clientY - joystickCenter.y;
+            const dist = Math.hypot(dx, dy);
+            const maxRadius = 45;
+
+            const angle = Math.atan2(dy, dx);
+            const moveDist = Math.min(dist, maxRadius);
+
+            const knobX = Math.cos(angle) * moveDist;
+            const knobY = Math.sin(angle) * moveDist;
+
+            joystickKnob.style.transform = `translate(${knobX}px, ${knobY}px)`;
+
+            joystickDir = {
+                x: Math.cos(angle) * (moveDist / maxRadius),
+                y: Math.sin(angle) * (moveDist / maxRadius)
+            };
+        }
+
+        document.getElementById('btnDash').addEventListener('click', triggerDash);
+
+        let player = new Player(0, 0);
+
+        function updateHUD() {
+            document.getElementById('hpFill').style.width = `${Math.max(0, (player.hp / player.maxHp) * 100)}%`;
+            document.getElementById('expFill').style.width = `${(player.exp / player.maxExp) * 100}%`;
+            document.getElementById('playerLevel').innerText = `Lv. ${player.level}`;
+            document.getElementById('scoreText').innerText = score.toLocaleString();
+            document.getElementById('threatsText').innerText = `${threatsDefeated}/${quizBank.length}`;
+        }
+
+        function showComboBanner(text) {
+            const banner = document.getElementById('comboBanner');
+            const bannerText = document.getElementById('comboBannerText');
+            bannerText.innerText = text;
+            banner.classList.remove('opacity-0', 'scale-50');
+            banner.classList.add('opacity-100', 'scale-105');
+
+            setTimeout(() => {
+                banner.classList.add('opacity-0', 'scale-50');
+                banner.classList.remove('opacity-100', 'scale-105');
+            }, 1400);
+        }
+
+        function updateCooldownUI(elementId, current, max) {
+            const el = document.getElementById(elementId);
+            if (current > 0) {
+                el.style.opacity = '1';
+                el.innerText = `${(current / 60).toFixed(1)}s`;
+            } else {
+                el.style.opacity = '0';
+            }
+        }
+
+        function gameLoop() {
+            if (gameActive && !isPaused && !isQuizActive) {
+                camera.targetX = player.x;
+                camera.targetY = player.y;
+                camera.x += (camera.targetX - camera.x) * 0.1;
+                camera.y += (camera.targetY - camera.y) * 0.1;
+
+                if (camera.shake > 0) {
+                    camera.x += (Math.random() - 0.5) * camera.shake;
+                    camera.y += (Math.random() - 0.5) * camera.shake;
+                    camera.shake *= 0.88;
+                    if (camera.shake < 0.5) camera.shake = 0;
+                }
+
+                player.update();
+                for (let t of threats) t.update();
+
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    particles[i].update();
+                    if (particles[i].life <= 0) particles.splice(i, 1);
+                }
+
+                for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                    const ft = floatingTexts[i];
+                    ft.y += ft.vy;
+                    ft.life--;
+                    if (ft.life <= 0) floatingTexts.splice(i, 1);
+                }
+
+                updateRadarCompass();
+            }
+
+            // RENDERING
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Cyber World Grid Background
+            ctx.save();
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.07)';
+            ctx.lineWidth = 1;
+
+            const gridSize = 80;
+            const offsetX = (-camera.x + canvas.width / 2) % gridSize;
+            const offsetY = (-camera.y + canvas.height / 2) % gridSize;
+
+            for (let x = offsetX; x < canvas.width; x += gridSize) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+            }
+            for (let y = offsetY; y < canvas.height; y += gridSize) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+            }
+            ctx.restore();
+
+            if (gameActive) {
+                for (let obs of obstacles) obs.draw();
+                for (let t of threats) t.draw();
+                player.draw();
+                for (let p of particles) p.draw();
+
+                for (let ft of floatingTexts) {
+                    ctx.save();
+                    ctx.translate(ft.x - camera.x + canvas.width / 2, ft.y - camera.y + canvas.height / 2);
+                    ctx.globalAlpha = Math.max(0, ft.life / ft.maxLife);
+                    ctx.font = `bold ${ft.size}px 'Kanit', sans-serif`;
+                    ctx.fillStyle = ft.color;
+                    ctx.textAlign = 'center';
+                    ctx.fillText(ft.text, 0, 0);
+                    ctx.restore();
+                }
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Overlay Modal Handler
+        const overlayModal = document.getElementById('overlayModal');
+        const modalContent = document.getElementById('modalContent');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalDesc = document.getElementById('modalDesc');
+        const modalPrimaryBtn = document.getElementById('modalPrimaryBtn');
+
+        function showModal(title, desc, btnText, onConfirm) {
+            modalTitle.innerText = title;
+            modalDesc.innerText = desc;
+            modalPrimaryBtn.innerText = btnText;
+
+            overlayModal.classList.remove('opacity-0', 'pointer-events-none');
+            modalContent.classList.remove('scale-95');
+            modalContent.classList.add('scale-100');
+
+            modalPrimaryBtn.onclick = () => {
+                hideModal();
+                if (onConfirm) onConfirm();
+            };
+        }
+
+        function hideModal() {
+            overlayModal.classList.add('opacity-0', 'pointer-events-none');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+        }
+
+        function startGame() {
+            initAudio();
+            player = new Player(0, 0);
+            score = 0;
+            threatsDefeated = 0;
+            particles = [];
+            floatingTexts = [];
+
+            generateMapLayout();
+            spawnThreats();
+
+            gameActive = true;
+            isPaused = false;
+            isQuizActive = false;
+
+            updateHUD();
+        }
+
+        function gameOver(isVictory) {
+            gameActive = false;
+            if (isVictory) {
+                playSound('correct');
+                showModal(
+                    'กู้คืนระบบสำเร็จสมบูรณ์! 🎉🛡️',
+                    `สุดยอดมากน้องปกป้อง! คุณกำจัดมัลแวร์ครบทั้งหมด ${quizBank.length} ตัว และทำคะแนนความปลอดภัยได้ ${score.toLocaleString()} คะแนน!`,
+                    'เล่นใหม่อีกครั้ง',
+                    startGame
+                );
+            } else {
+                playSound('wrong');
+                showModal(
+                    'ระบบถูกคุกคามจนล้มเหลว! ⚠️',
+                    `พลังป้องกันหมดลง! คุณทำลายภัยคุกคามไปได้ ${threatsDefeated}/${quizBank.length} ตัว มาร่วมทบทวนบทเรียนและเริ่มต้นสำรวจใหม่นะ!`,
+                    'ลองใหม่อีกครั้ง',
+                    startGame
+                );
+            }
+        }
+
+        document.getElementById('soundBtn').addEventListener('click', () => {
+            initAudio();
+            audioEnabled = !audioEnabled;
+            const icon = document.getElementById('soundIcon');
+            icon.className = audioEnabled ? 'fa-solid fa-volume-high text-lg' : 'fa-solid fa-volume-xmark text-lg text-rose-400';
+        });
+
+        document.getElementById('pauseBtn').addEventListener('click', () => {
+            if (!gameActive) return;
+            isPaused = !isPaused;
+            if (isPaused) {
+                showModal('หยุดเกมชั่วคราว ⏸️', 'ระบบหยุดชั่วคราว พร้อมแล้วกดปุ่มด้านล่างเพื่อสำรวจต่อ!', 'เล่นต่อ', () => { isPaused = false; });
+            }
+        });
+
+        window.onload = () => {
+            requestAnimationFrame(gameLoop);
+            showModal(
+                'Cyber Security Hero 🛡️',
+                'ช่วยน้องปกป้องออกตามหาภัยคุกคามไซเบอร์ที่ซ่อนอยู่ตามเขาวงกตเซิร์ฟเวอร์ เมื่อเดินไปชนมัลแวร์จะเปิดคำถามข้อสอบวิทยาการคำนวณ ม.1 ตอบถูกเพื่อกำจัดมัลแวร์!',
+                'เริ่มลุยสำรวจเลย!',
+                startGame
+            );
+        };
+    </script>
+</body>
+</html>
